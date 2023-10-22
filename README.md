@@ -11,3 +11,6 @@ Smiley face using the playfield
 
 Horizontally moving player
 
+## Vertical
+
+Horizontally and vertically moving player. Changes color based on movement direction.
