@@ -1,4 +1,5 @@
 PLAYERY = $80
+PLAYERACTIVE = $81  ; this will be set to 8 when the player should be drawn, and every scanline it will decrement until it gets to 0
 COLORLEFT = $00
 COLORRIGHT = $0F
 COLORUP = $08
@@ -44,7 +45,10 @@ Reset
       ; set player y to 8
         lda #8
         sta PLAYERY
-    
+
+      ; set player to inactive
+        lda #0
+        sta PLAYERACTIVE
 
 StartOfFrame
       ; start of vertical blank processing  
@@ -82,25 +86,13 @@ VBlankLoop:
 
 PreEyes0:
       ; 32 scanlines of background
-      ; check if the player is less than 8 scanlines up
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #8
-        tya
-
-        ldy #$FF
-        bcc PreEyes1
-        beq PreEyes1
-        ldy #$00
-
-PreEyes1:
-        sty GRP0
         dex
         sta WSYNC
-        bne PreEyes0
+        beq PreEyes1
+        jsr TryDrawPlayer
+        jmp PreEyes0
 
+PreEyes1:
     lda #0  
     ldy #$F 
 
@@ -114,24 +106,13 @@ PreEyes1:
 
 Eyes0:
       ; 32 scanlines of eyes on playfield
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #8
-        tya
-
-        ldy #$FF
-        bcc Eyes1
-        beq Eyes1
-        ldy #$00
-
-Eyes1:
-        sty GRP0
         dex
         sta WSYNC
-        bne Eyes0
+        beq Eyes1
+        jsr TryDrawPlayer
+        jmp Eyes0
 
+Eyes1:
     lda #0
     sta PF1
     sta PF2
@@ -141,24 +122,13 @@ Eyes1:
 
 AfterEyes0:
       ; 32 scanlines of background
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #8
-        tya
-
-        ldy #$FF
-        bcc AfterEyes1
-        beq AfterEyes1
-        ldy #$00
-
-AfterEyes1:
-        sty GRP0
         dex
         sta WSYNC
-        bne AfterEyes0
-
+        beq AfterEyes1
+        jsr TryDrawPlayer
+        jmp AfterEyes0
+    
+AfterEyes1:
     ldy #$F
 
     sty PF1
@@ -169,24 +139,13 @@ AfterEyes1:
 
 MouthCorners0:
       ; 32 scanlines of mouth corners
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #8
-        tya
-
-        ldy #$FF
-        bcc MouthCorners1
-        beq MouthCorners1
-        ldy #$00
-
-MouthCorners1:
-        sty GRP0
         dex
         sta WSYNC
-        bne MouthCorners0
+        beq MouthCorners1
+        jsr TryDrawPlayer
+        jmp MouthCorners0
 
+MouthCorners1:
     ldy #$F
     ldx #$FF
 
@@ -198,24 +157,13 @@ MouthCorners1:
 
 MouthProper0:
       ; 32 scanlines of mouth
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #8
-        tya
-
-        ldy #$FF
-        bcc MouthProper1
-        beq MouthProper1
-        ldy #$00
-
-MouthProper1:
-        sty GRP0
         dex
         sta WSYNC
-        bne MouthProper0
+        beq MouthProper1
+        jsr TryDrawPlayer
+        jmp MouthProper0
 
+MouthProper1:
     lda #0
 
     sta PF1
@@ -226,24 +174,13 @@ MouthProper1:
 
 AfterMouth0:
       ; final 32 scanlines of picture
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #8
-        tya
-
-        ldy #$FF
-        bcc AfterMouth1
-        beq AfterMouth1
-        ldy #$00
-
-AfterMouth1:
-        sty GRP0
         dex
         sta WSYNC
-        bne AfterMouth0
-
+        beq AfterMouth1
+        jsr TryDrawPlayer
+        jmp AfterMouth0
+    
+AfterMouth1:
     lda #%01000010
     sta VBLANK      ; end of picture - enter blanking
 
@@ -335,6 +272,32 @@ MoveVert:
         sty COLUP0
 
         jmp Overscan1
+
+TryDrawPlayer:
+      ; check if the player is on the next scanline
+        clc
+        adc #1
+        tay
+        cmp PLAYERY
+        
+
+      ; -- old --
+        clc
+        adc #1
+        tay
+        sbc PLAYERY
+        cmp #8
+        tya
+
+        ldy #$FF
+        bcc TryDrawPlayerReturn
+        beq TryDrawPlayerReturn
+        ldy #$00
+      ; -- old ends --
+
+TryDrawPlayerReturn:
+        sty GRP0
+        rts
 
 
     ORG $FFFA
