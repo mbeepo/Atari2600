@@ -1,0 +1,5 @@
+#! /bin/sh
+# You'll need to have dasm/machines/atari2600/{macro.h,vcs.h} accessible for this to work
+
+filename="$(echo $1 | rev | cut -f 2- -d '.' | rev)"
+dasm $1 -l$filename.txt -f3 -v5 -o$filename.bin

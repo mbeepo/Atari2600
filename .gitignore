@@ -1,0 +1,6 @@
+/dasm
+/macro.h
+/vcs.h
+/stella
+**/**.bin
+**/**.txt
