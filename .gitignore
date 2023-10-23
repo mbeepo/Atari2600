@@ -2,5 +2,6 @@
 /macro.h
 /vcs.h
 /stella
-**/**.bin
-**/**.txt
+**/*.bin
+**/*.lst
+**/*.sym

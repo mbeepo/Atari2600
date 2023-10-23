@@ -1,17 +1,22 @@
-  ; stella emulator seems unhappy with the rom dasm makes from this
-  ; sometimes it draws the player as it should, other times it draws little clones of it on other scanlines
-PLAYERHEIGHT = 16
-COLORLEFT = $00
-COLORRIGHT = $0F
-COLORUP = $08
-COLORDOWN = $81
+; this was an attempt to make a better guy but it ended up branching too much
+
+PLAYERY = $80       ; the scanline the player is currently on. must exist so PLAYERIN can be reset in vblank
+PLAYERACTIVE = $81  ; this will be set to 8 and decremented each scanline when the player should be drawn, and 128 until then
+PLAYERIN = $82      ; the number of scanlines left before the player will be rendered
+
+PLAYERHEIGHT = 8
+
 SPEEDX = 2
 SPEEDY = 2
 
-PLAYERY = $80
+COLORLEFT = $00
+COLORRIGHT = $0F
+COLORUP = $08
+COLORDOWN = $80
     
 SPEEDLEFT = SPEEDX << 4
 SPEEDRIGHT = $100 - SPEEDLEFT
+PLAYERHEIGHTR = PLAYERHEIGHT >> 1
 
     processor 6502
     include "vcs.h"
@@ -19,6 +24,7 @@ SPEEDRIGHT = $100 - SPEEDLEFT
     
     SEG
     ORG $F000
+    .byte SPEEDRIGHT
 
 Reset
       ; set player color to solid white
@@ -47,7 +53,14 @@ Reset
       ; set player y to 8
         lda #8
         sta PLAYERY
-    
+
+      ; set player to not yet drawn
+        lda #$80
+        sta PLAYERACTIVE
+
+      ; placeholder value until we get to vblank
+        lda #$FF
+        sta PLAYERIN
 
 StartOfFrame
       ; start of vertical blank processing  
@@ -68,14 +81,22 @@ StartOfFrame
     lda #%01000010
     sta VBLANK ; enable vblank for rest of blanking period
 
-    ldx #37
+    ldx #36
 
 VBlankLoop:
-      ; 37 scanlines of vertical blank
+      ; 36 scanlines of vertical blank
         dex
         sta WSYNC
 
         bne VBlankLoop
+    
+    lda PLAYERY
+    sta PLAYERIN
+
+    lda #$80
+    sta PLAYERACTIVE
+
+    sta WSYNC
 
     lda #%01000000
     sta VBLANK
@@ -85,28 +106,14 @@ VBlankLoop:
 
 PreEyes0:
       ; 32 scanlines of background
-      ; check if the player is less than 8 scanlines up
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #PLAYERHEIGHT
-        php
-
-        tya
-        ldy #$FF
-        plp
-        
-        bcc PreEyes1
-        beq PreEyes1
-        ldy #$00
-
-PreEyes1:
         dex
         sta WSYNC
-        sty GRP0
-        bne PreEyes0
+        beq PreEyes1
+        jsr TryDrawPlayer
+        beq PreEyes1
+        jmp PreEyes0
 
+PreEyes1:
     lda #0  
     ldy #$F 
 
@@ -120,27 +127,14 @@ PreEyes1:
 
 Eyes0:
       ; 32 scanlines of eyes on playfield
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #PLAYERHEIGHT
-        php
-
-        tya
-        ldy #$FF
-        plp
-        
-        bcc Eyes1
-        beq Eyes1
-        ldy #$00
-
-Eyes1:
         dex
         sta WSYNC
-        sty GRP0
-        bne Eyes0
+        beq Eyes1
+        jsr TryDrawPlayer
+        beq Eyes1
+        jmp Eyes0
 
+Eyes1:
     lda #0
     sta PF1
     sta PF2
@@ -150,27 +144,14 @@ Eyes1:
 
 AfterEyes0:
       ; 32 scanlines of background
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #PLAYERHEIGHT
-        php
-
-        tya
-        ldy #$FF
-        plp
-
-        bcc AfterEyes1
-        beq AfterEyes1
-        ldy #$00
-
-AfterEyes1:
         dex
         sta WSYNC
-        sty GRP0
-        bne AfterEyes0
-
+        beq AfterEyes1
+        jsr TryDrawPlayer
+        beq AfterEyes1
+        jmp AfterEyes0
+    
+AfterEyes1:
     ldy #$F
 
     sty PF1
@@ -181,27 +162,13 @@ AfterEyes1:
 
 MouthCorners0:
       ; 32 scanlines of mouth corners
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #PLAYERHEIGHT
-        php
-
-        tya
-        ldy #$FF
-        plp
-
-        bcc MouthCorners1
-        beq MouthCorners1
-        ldy #$00
-
-MouthCorners1:
         dex
         sta WSYNC
-        sty GRP0
-        bne MouthCorners0
+        beq MouthCorners1
+        jsr TryDrawPlayer
+        jmp MouthCorners0
 
+MouthCorners1:
     ldy #$F
     ldx #$FF
 
@@ -213,27 +180,13 @@ MouthCorners1:
 
 MouthProper0:
       ; 32 scanlines of mouth
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #PLAYERHEIGHT
-        php
-
-        tya
-        ldy #$FF
-        plp
-        
-        bcc MouthProper1
-        beq MouthProper1
-        ldy #$00
-
-MouthProper1:
         dex
         sta WSYNC
-        sty GRP0
-        bne MouthProper0
+        beq MouthProper1
+        jsr TryDrawPlayer
+        jmp MouthProper0
 
+MouthProper1:
     lda #0
 
     sta PF1
@@ -244,27 +197,13 @@ MouthProper1:
 
 AfterMouth0:
       ; final 32 scanlines of picture
-        clc
-        adc #1
-        tay
-        sbc PLAYERY
-        cmp #PLAYERHEIGHT
-        php
-
-        tya
-        ldy #$FF
-        plp
-
-        bcc AfterMouth1
-        beq AfterMouth1
-        ldy #$00
-
-AfterMouth1:
         dex
         sta WSYNC
-        sty GRP0
-        bne AfterMouth0
-
+        beq AfterMouth1
+        jsr TryDrawPlayer
+        jmp AfterMouth0
+    
+AfterMouth1:
     lda #%01000010
     sta VBLANK      ; end of picture - enter blanking
 
@@ -356,7 +295,53 @@ MoveVert:
         sty COLUP0
 
         jmp Overscan1
-    
+
+Return:
+    lda #1 ; clear the Z flag so the caller doesn't exit early
+    rts
+
+TryDrawPlayer:
+      ; if PLAYERACTIVE is 0, the player has already been drawn
+        lda PLAYERACTIVE
+        beq EndDrawPlayer
+
+DrawPlayer0:
+      ; if PLAYERACTIVE.7 is set, the player has not been drawn yet
+      ; therefore if it is not set, the player is currently being drawn
+        bit PLAYERACTIVE
+        bmi PollPlayer
+        lda PLAYERACTIVE
+        and #PLAYERHEIGHTR
+        bne DrawPlayer1
+        dec PLAYERACTIVE
+        beq EndDrawPlayer
+
+DrawPlayer1:
+        ldy #$FF
+        dex
+        sta WSYNC
+        sty GRP0
+        rts
+
+EndDrawPlayer:
+        ldy #0
+        dex
+        sta WSYNC
+        sty GRP0
+        rts
+
+PollPlayer:
+      ; check if the player is on the next scanline
+        dec PLAYERIN
+        bne Return
+
+StartDrawPlayer:
+        lda #PLAYERHEIGHTR
+        sta PLAYERACTIVE
+        lda #1
+        rts
+
+
     ORG $FFFA
 
     .word Reset     ; NMI
