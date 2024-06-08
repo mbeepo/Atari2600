@@ -1,0 +1,15 @@
+#! /bin/sh
+
+set -e
+
+filename="$(echo $1 | rev | cut -f 2- -d '.' | rev)"
+dir="$(echo $1 | rev | cut -f 2- -d '/' | rev)"
+
+echo $dir/two
+
+cd $dir/two
+cargo build -r
+
+cd ../..
+cat $1 | $dir/two/target/release/two > $filename.out.s
+dasm $filename.out.s -l$filename.lst -s$filename.sym -f3 -v5 -o$filename.bin

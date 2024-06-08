@@ -21,8 +21,8 @@ SPEEDRIGHT = $100 - SPEEDLEFT
     ORG $F000
 
 Reset
-      ; set player color to solid white
-        lda #$0F
+      ; set player color to COLORRIGHT
+        lda #COLORRIGHT
         sta COLUP0
 
       ; hide the player to start
